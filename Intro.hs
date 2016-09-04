@@ -6,21 +6,21 @@
 {-# LANGUAGE RankNTypes #-}
 module Intro where
 
-data QuestionType = QYesNo | QNumeric
+data QuestionType = TYesNo | TNumeric
 
 data Questions sig = Questions (Env Question sig)
 
 data Question (qt :: QuestionType) where
-  YesNo :: String -> Bool -> Question 'QYesNo
-  Numeric :: String -> Int -> Question 'QNumeric
+  QYesNo :: String -> Bool -> Question 'TYesNo
+  QNumeric :: String -> Int -> Question 'TNumeric
 
-example :: Questions '[ 'QYesNo, 'QNumeric]
+example :: Questions '[ 'TYesNo, 'TNumeric]
 example = Questions $
-     YesNo "Ist heute Sonntag?" True
-  :* Numeric "Wieviele Leute beim MuniHac?" 100
+     QYesNo "Ist heute Sonntag?" True
+  :* QNumeric "Wieviele Leute beim MuniHac?" 100
   :* ENil
 
-answers :: Answers '[ 'QYesNo, 'QNumeric]
+answers :: Answers '[ 'TYesNo, 'TNumeric]
 answers = Answers $
      AYesNo True
   :* ANumeric 95
@@ -29,8 +29,8 @@ answers = Answers $
 data Answers sig = Answers (Env Answer sig)
 
 data Answer (qt :: QuestionType) where
-  AYesNo :: Bool -> Answer 'QYesNo
-  ANumeric :: Int -> Answer 'QNumeric
+  AYesNo :: Bool -> Answer 'TYesNo
+  ANumeric :: Int -> Answer 'TNumeric
 
 {-
 data Scoring n = Scoring (Vec n ScoreFunction)
@@ -41,9 +41,9 @@ data ScoreFunction =
 -}
 
 combineFunction :: Question qt -> Answer qt -> K Int qt
-combineFunction (YesNo _ correct) (AYesNo b) =
+combineFunction (QYesNo _ correct) (AYesNo b) =
   if correct == b then K 10 else K 0
-combineFunction (Numeric _ n) (ANumeric i) = K (10 - abs (n - i))
+combineFunction (QNumeric _ n) (ANumeric i) = K (10 - abs (n - i))
 
 data K a b = K a
 
