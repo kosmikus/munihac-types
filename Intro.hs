@@ -1,26 +1,60 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE PolyKinds #-}
+{-# LANGUAGE RankNTypes #-}
 module Intro where
 
-data Questions n = Questions (Vec n Question)
+data QuestionType = QYesNo | QNumeric
 
-data Question =
-    YesNo String Bool
-  | Numeric String Int
+data Questions sig = Questions (Env Question sig)
 
-data Answers n = Answers (Vec n Answer)
+data Question (qt :: QuestionType) where
+  YesNo :: String -> Bool -> Question 'QYesNo
+  Numeric :: String -> Int -> Question 'QNumeric
 
-data Answer =
-    AYesNo Bool
-  | ANumeric Int
+example :: Questions '[ 'QYesNo, 'QNumeric]
+example = Questions $
+     YesNo "Ist heute Sonntag?" True
+  :* Numeric "Wieviele Leute beim MuniHac?" 100
+  :* ENil
 
+answers :: Answers '[ 'QYesNo, 'QNumeric]
+answers = Answers $
+     AYesNo True
+  :* ANumeric 95
+  :* ENil
+
+data Answers sig = Answers (Env Answer sig)
+
+data Answer (qt :: QuestionType) where
+  AYesNo :: Bool -> Answer 'QYesNo
+  ANumeric :: Int -> Answer 'QNumeric
+
+{-
 data Scoring n = Scoring (Vec n ScoreFunction)
 
 data ScoreFunction =
     SYesNo Int Int
   | SNumeric (Int -> Int)
+-}
 
+combineFunction :: Question qt -> Answer qt -> K Int qt
+combineFunction (YesNo _ correct) (AYesNo b) =
+  if correct == b then K 10 else K 0
+combineFunction (Numeric _ n) (ANumeric i) = K (10 - abs (n - i))
+
+data K a b = K a
+
+score :: Questions sig -> Answers sig -> Int
+score (Questions qs) (Answers as) =
+  let v = eZipWith
+            combineFunction
+            qs
+            as
+  in sum (eToList v)
+{-
 score :: Questions n -> Answers n -> Int
 score (Questions qs) (Answers as) =
   let v = vZipWith
@@ -28,8 +62,24 @@ score (Questions qs) (Answers as) =
             qs
             as
   in sum (toList v)
+-}
 
-data QuestionType = QYesNo | QNumeric
+data Env (f :: k -> *) (sig :: [k]) where
+  ENil :: Env f '[]
+  (:*) :: f a -> Env f sig -> Env f (a ': sig)
+
+infixr 5 :*
+
+eZipWith ::
+  (forall a . f a -> g a -> h a) -> Env f sig -> Env g sig -> Env h sig
+eZipWith _op ENil      ENil      = ENil
+eZipWith  op (x :* xs) (y :* ys) = op x y :* eZipWith op xs ys
+
+data HList (sig :: [*]) where
+  HNil :: HList '[]
+  (:-) :: a -> HList sig -> HList (a ': sig)
+
+infixr 5 :-
 
 data Nat = Zero | Suc Nat
 
@@ -46,3 +96,7 @@ vZipWith  op (x :. xs) (y :. ys) = op x y :. vZipWith op xs ys
 toList :: Vec n a -> [a]
 toList Nil       = []
 toList (x :. xs) = x : toList xs
+
+eToList :: Env (K a) sig -> [a]
+eToList ENil        = []
+eToList (K x :* xs) = x : eToList xs
