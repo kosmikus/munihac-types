@@ -14,6 +14,12 @@ data Question (qt :: QuestionType) where
   QYesNo :: String -> Bool -> Question 'TYesNo
   QNumeric :: String -> Int -> Question 'TNumeric
 
+data Answers sig = Answers (Env Answer sig)
+
+data Answer (qt :: QuestionType) where
+  AYesNo :: Bool -> Answer 'TYesNo
+  ANumeric :: Int -> Answer 'TNumeric
+
 example :: Questions '[ 'TYesNo, 'TNumeric]
 example = Questions $
      QYesNo "Ist heute Sonntag?" True
@@ -25,20 +31,6 @@ answers = Answers $
      AYesNo True
   :* ANumeric 95
   :* ENil
-
-data Answers sig = Answers (Env Answer sig)
-
-data Answer (qt :: QuestionType) where
-  AYesNo :: Bool -> Answer 'TYesNo
-  ANumeric :: Int -> Answer 'TNumeric
-
-{-
-data Scoring n = Scoring (Vec n ScoreFunction)
-
-data ScoreFunction =
-    SYesNo Int Int
-  | SNumeric (Int -> Int)
--}
 
 combineFunction :: Question qt -> Answer qt -> K Int qt
 combineFunction (QYesNo _ correct) (AYesNo b) =
@@ -54,15 +46,6 @@ score (Questions qs) (Answers as) =
             qs
             as
   in sum (eToList v)
-{-
-score :: Questions n -> Answers n -> Int
-score (Questions qs) (Answers as) =
-  let v = vZipWith
-            (\ (Question _ correct) b -> if correct == b then 1 else 0)
-            qs
-            as
-  in sum (toList v)
--}
 
 data Env (f :: k -> *) (sig :: [k]) where
   ENil :: Env f '[]
